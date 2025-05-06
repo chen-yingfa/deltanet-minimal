@@ -5,7 +5,14 @@ A single-file implementation of the DeltaNet with pure PyTorch.
 The model was proposed by [Parallelizing Linear Transformers with the Delta Rule
 over Sequence Length](https://arxiv.org/abs/2406.06484). The official implementation requires [flash-linear-attention](https://www.github.com/fla-org/flash-linear-attention) to run, which only supports Linux. This code can be run with any platform that supports PyTorch (e.g., MacOS and Windows).
 
-This also supports both forward and backward pass, since it's purely written with PyTorch. But the speed is worse.
+Features:
+- Support both forward and backward pass, since it's purely written with PyTorch.
+- Run DeltaNet without flash-linear-attention.
+    - This also means you can finally run DeltaNet on MacOS and Windows 😁
+- Simplified code for educational purposes.
+
+Do not expect:
+- Speed: this code is much slower than flash-linear-attention, especially for training.
 
 ## Installation
 
