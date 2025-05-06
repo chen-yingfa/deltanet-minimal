@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 import json
-from typing import cast, Optional
+from typing import Optional
 
-from transformers import AutoTokenizer
 from safetensors.torch import load_file
 import torch
 from torch import nn, Tensor
@@ -58,7 +57,7 @@ def delta_rule_recurrence(q, k, v, beta, initial_state=None, output_final_state=
     d_v = v.shape[-1]
     o = torch.zeros_like(v)  # (B, nheads, len, dv)
     S = torch.zeros(b, nheads, dk, d_v).to(v)
-    q = q * (dk ** -0.5)
+    q = q * (dk**-0.5)
 
     if beta.ndim < v.ndim:
         beta = beta[..., None]  # (B, nheads, len, 1)
@@ -71,9 +70,9 @@ def delta_rule_recurrence(q, k, v, beta, initial_state=None, output_final_state=
         _q = q[:, :, i]  # (B, nheads, dk)
         _v = v[:, :, i].clone()  # (B, nheads, dv)
         beta_i = beta[:, :, i]  # (B, nheads, 1)
-        _v = _v - torch.einsum('bhdm,bhd->bhm', S.clone(), _k)  # (B, nheads, dv)
+        _v = _v - torch.einsum("bhdm,bhd->bhm", S.clone(), _k)  # (B, nheads, dv)
         _v = _v * beta_i  # (B, nheads, dv)
-        S = S.clone() + torch.einsum('bhd,bhm->bhdm', _k, _v)  # (B, nheads, dk, dv)
+        S = S.clone() + torch.einsum("bhd,bhm->bhdm", _k, _v)  # (B, nheads, dk, dv)
         o[:, :, i] = torch.einsum("bhd,bhdm->bhm", _q, S)
     S = None if output_final_state is False else S
     return o.to(orig_dtype), S
@@ -258,18 +257,18 @@ class DeltaNet(nn.Module):
         # The new short conv state
         new_state = x[:, -self.conv_size + 1 :]  # (B, conv_size - 1, D)
 
-        x = rearrange(x, 'b t d -> b d t')
+        x = rearrange(x, "b t d -> b d t")
         x = conv_module(x)
-        x = rearrange(x, 'b d t -> b t d')  # (B, len, D)
+        x = rearrange(x, "b d t -> b t d")  # (B, len, D)
         # Remove padding on the right
-        x = x[:, :-(self.conv_size - 1)]
+        x = x[:, : -(self.conv_size - 1)]
 
         # Remove padding on the left
         x = x[:, -orig_len:]  # (B, len, D)
 
         return x, new_state
 
-    def forward(self, x: Tensor, state: None | tuple[tuple, Tensor] = None):
+    def forward(self, x: Tensor, state: Optional[tuple[tuple, Tensor]] = None):
         # print(f"DeltaNet.forward {self.layer_idx}", x.shape, x)
         batch_size, seqlen, _ = x.shape
         q = self.q_proj(x)  # (B, len, D)
@@ -282,9 +281,15 @@ class DeltaNet(nn.Module):
             q_conv_state, k_conv_state, v_conv_state = None, None, None
         else:
             q_conv_state, k_conv_state, v_conv_state = state[0]
-        q, q_conv_state = self.short_conv(q, state=q_conv_state, conv_module=self.q_conv1d)
-        k, k_conv_state = self.short_conv(k, state=k_conv_state, conv_module=self.k_conv1d)
-        v, v_conv_state = self.short_conv(v, state=v_conv_state, conv_module=self.v_conv1d)
+        q, q_conv_state = self.short_conv(
+            q, state=q_conv_state, conv_module=self.q_conv1d
+        )
+        k, k_conv_state = self.short_conv(
+            k, state=k_conv_state, conv_module=self.k_conv1d
+        )
+        v, v_conv_state = self.short_conv(
+            v, state=v_conv_state, conv_module=self.v_conv1d
+        )
         new_conv_state = (q_conv_state, k_conv_state, v_conv_state)
         q = F.silu(q)
         k = F.silu(k)
@@ -327,10 +332,10 @@ class DeltaNetLayer(nn.Module):
         self.mlp = MLP(config)
 
     def forward(self, x: Tensor, state: tuple | None = None):
-        '''
+        """
         x: (B, len, D)
         state: (conv_state, recurrent_state)
-        '''
+        """
         # ==== Token mixing ====
         res = x
         x = self.attn_norm(x)
@@ -348,7 +353,11 @@ class DeltaNetModel(nn.Module):
     def __init__(self, config: DeltaNetConfig):
         super().__init__()
         self.config = config
-        self.embeddings = nn.Embedding(config.vocab_size, config.hidden_size, config.pad_token_id)
+        self.embeddings = nn.Embedding(
+            config.vocab_size,
+            config.hidden_size,
+            config.pad_token_id,
+        )
         self.layers = nn.ModuleList(
             [DeltaNetLayer(config, i) for i in range(config.num_hidden_layers)]
         )
@@ -432,12 +441,14 @@ class DeltaNetForCausalLM(nn.Module):
 
 
 if __name__ == "__main__":
+    from transformers import AutoTokenizer
+
     config_path = "configs/1.3b.json"
     ckpt_path = "model.safetensors"
-    tok_path = 'fla-hub/delta_net-1.3B-100B'
-    device = 'mps'
+    tok_path = "fla-hub/delta_net-1.3B-100B"
+    device = "mps"
 
-    tokenizer = AutoTokenizer.from_pretrained('./tokenizer')
+    tokenizer = AutoTokenizer.from_pretrained("./tokenizer")
     # tokenizer.save_pretrained('tokenizer')
     config = DeltaNetConfig.from_pretrained(config_path)
     print(config)
@@ -448,15 +459,15 @@ if __name__ == "__main__":
     state_dict = load_file(ckpt_path)
     model.load_state_dict(state_dict)
 
-    prompt = 'My name is'
-    input_ids = tokenizer(prompt, return_tensors='pt')['input_ids'].to(device)
-    print('====== prompt ======')
+    prompt = "My name is"
+    input_ids = tokenizer(prompt, return_tensors="pt")["input_ids"].to(device)
+    print("====== prompt ======")
     print(prompt)
-    print('====================')
+    print("====================")
     outputs = model.generate(input_ids, max_new_tokens=20)
     output_text = tokenizer.batch_decode(outputs)
-    print('====== output ======')
+    print("====== output ======")
     print(output_text)
-    print('====================')
+    print("====================")
     # This should output:
     # ['<s> My name is Katie and I am a 20 year old student at the University of North Carolina at Chap']
