@@ -1,4 +1,4 @@
-# DeltaNet PyTorch Minimal implementation
+# DeltaNet Minimal
 
 A single-file implementation of the DeltaNet with pure PyTorch.
 
