@@ -37,4 +37,4 @@ Since this runs with pure PyTorch, it will be much slower than the kernels of fl
 Some of the code was taken from:
 
 - [flash-linear-attention](https://www.github.com/fla-org/flash-linear-attention)
-- [mamba2-minimal](https://github.com/johnma2006/mamba-minimal)
+- [mamba-minimal](https://github.com/johnma2006/mamba-minimal)
